@@ -16,7 +16,8 @@ namespace Fusion.Statistics {
     [SerializeField] private RectTransform _renderPanelRectTransform;
 
     private Transform _worldTransformAnchor;
-    private float _worldCanvasScale = 0.005f;
+    private readonly Vector3 _worldCanvasInitialScale = new Vector3(0.005f, 0.005f, 0.005f);
+    private float _worldCanvasScale = 1f;
 
     private FusionStatistics _fusionStatistics;
     
@@ -51,7 +52,7 @@ namespace Fusion.Statistics {
     
     internal void SetWorldAnchor(Transform worldTransformAnchor) {
       _canvas.renderMode = RenderMode.WorldSpace;
-      _renderPanelRectTransform.localScale = Vector3.one * _worldCanvasScale;
+      _renderPanelRectTransform.localScale = _worldCanvasInitialScale * _worldCanvasScale;
       _renderPanelRectTransform.localPosition = Vector3.zero;
       
       
@@ -69,15 +70,11 @@ namespace Fusion.Statistics {
       // Was called from editor destroy
       if (!_fusionStatistics)
         return;
-
-      var childPanel = (RectTransform)_renderPanelRectTransform.GetChild(0);
       
       _renderPanelRectTransform.SetParent(_fusionStatistics.transform);
       _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
       _renderPanelRectTransform.localScale = Vector3.one;
       _renderPanelRectTransform.localPosition = Vector3.zero;
-      childPanel.localPosition = Vector3.zero;
-      childPanel.anchoredPosition = Vector3.zero;
       _worldTransformAnchor = default;
     }
 
@@ -95,7 +92,6 @@ namespace Fusion.Statistics {
     }
 
     private void OnEnable() {
-      _onWorldAnchorCandidatesUpdate -= UpdateWorldAnchorButtons;
       _onWorldAnchorCandidatesUpdate += UpdateWorldAnchorButtons;
       UpdateWorldAnchorButtons();
     }

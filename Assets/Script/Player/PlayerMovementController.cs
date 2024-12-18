@@ -4,90 +4,116 @@ using Fusion;
 using Fusion.Addons.Physics;
 using UnityEngine;
 
-// The class is dedicated to controlling the Player's movement in 2D
-public class PlayerMovementController : NetworkBehaviour
+namespace Tangar.io
 {
-    // Game Session AGNOSTIC Settings
-    [SerializeField] private float _movementSpeed = 2000.0f;
-    [SerializeField] private float _maxSpeed = 200.0f;
-
-    // Local Runtime references
-    private Rigidbody2D _rigidbody = null;  // The Unity Rigidbody2D (RB) is automatically synchronized across the network thanks to the NetworkRigidbody2D (NRB) component.
-
-    private PlayerController _playerController = null;
-
-    // Game Session SPECIFIC Settings
-    [Networked] private float _screenBoundaryX { get; set; }
-    [Networked] private float _screenBoundaryY { get; set; }
-
-    public override void Spawned()
+    // The class is dedicated to controlling the Player's movement
+    public class PlayerMovementController : NetworkBehaviour
     {
-        // --- Host & Client
-        // Set the local runtime references.
-        _rigidbody = GetComponent<Rigidbody2D>();
-        _playerController = GetComponent<PlayerController>();
+        // Game Session AGNOSTIC Settings
+        // [SerializeField] private float _rotationSpeed = 90.0f;
+        [SerializeField] private float _movementSpeed = 3000.0f;
+        [SerializeField] private float _maxSpeed = 500.0f;
+        [SerializeField] private float _dashSpeed = 6000.0f;
+        [SerializeField] private float _dashTime = 0.5f;
 
-        // --- Host
-        // The Game Session SPECIFIC settings are initialized
-        if (Object.HasStateAuthority == false) return;
+        // Local Runtime references
+        private Rigidbody _rigidbody = null;
 
-        _screenBoundaryX = Camera.main.orthographicSize * Camera.main.aspect;
-        _screenBoundaryY = Camera.main.orthographicSize;
-    }
+        private PlayerController _playerController = null;
 
-    public override void FixedUpdateNetwork()
-    {
-        // Bail out of FUN() if this player does not currently accept input
-        if (_playerController.AcceptInput == false) return;
+        // Game Session SPECIFIC Settings
+        [Networked] private float _screenBoundaryX { get; set; }
+        [Networked] private float _screenBoundaryY { get; set; }
 
-        // GetInput() can only be called from NetworkBehaviours.
-        // In SimulationBehaviours, either TryGetInputForPlayer<T>() or GetInputForPlayer<T>() has to be called.
-        // This will only return true on the Client with InputAuthority for this Object and the Host.
-        if (Runner.TryGetInputForPlayer<PlayerInput>(Object.InputAuthority, out var input))
+        [Networked] public Vector3 _lastDirection { get; private set; }
+
+        [Networked] public NetworkBool _isControllable { get; private set; }
+        [Networked] public TickTimer _dashTimer {  get; private set; }
+
+        public override void Spawned()
         {
-            Move(input);
+            // --- Host & Client
+            // Set the local runtime references.
+            _rigidbody = GetComponent<Rigidbody>();
+            _playerController = GetComponent<PlayerController>();
+
+            // --- Host
+            // The Game Session SPECIFIC settings are initialized
+            if (Object.HasStateAuthority == false) return;
+
+            _screenBoundaryX = 245.0f;
+            _screenBoundaryY = 245.0f;
+
+            _lastDirection = Vector3.forward;
+
+            _isControllable = true;
         }
 
-        CheckExitScreen();
-    }
-
-    // Moves the player RB using the input for the client with InputAuthority over the object
-    private void Move(PlayerInput input)
-    {
-        // Calculate direction
-        Vector2 direction =  (transform.up * input.VerticalInput + transform.right * input.HorizontalInput);
-
-        // Apply direct translation
-        _rigidbody.velocity = direction.normalized * _movementSpeed * Runner.DeltaTime;
-
-        // Clamp the velocity to the maximum speed, if necessary
-        if (_rigidbody.velocity.magnitude > _maxSpeed)
+        public override void FixedUpdateNetwork()
         {
-            _rigidbody.velocity = _rigidbody.velocity.normalized * _maxSpeed;
-        }
-    }
+            // Bail out of FUN() if this player does not currently accept input
+            if (_playerController.AcceptInput == false) return;
 
+            // GetInput() can only be called from NetworkBehaviours.
+            // In SimulationBehaviours, either TryGetInputForPlayer<T>() or GetInputForPlayer<T>() has to be called.
+            // This will only return true on the Client with InputAuthority for this Object and the Host.
+            if (Runner.TryGetInputForPlayer<PlayerInput>(Object.InputAuthority, out var input))
+            {
+                Move(input);
+            }
 
-    // Moves the ship to the opposite side of the screen if it exits the screen boundaries.
-    private void CheckExitScreen()
-    {
-        var position = _rigidbody.position;
+            if (_dashTimer.Expired(Runner))
+            {
+                _isControllable = true;
+            }
 
-        if (Mathf.Abs(position.x) < _screenBoundaryX && Mathf.Abs(position.y) < _screenBoundaryY) return;
-
-        // Wrap around on the X and Y axes if the player goes beyond screen boundaries
-        if (Mathf.Abs(position.x) > _screenBoundaryX)
-        {
-            position.x = -Mathf.Sign(position.x) * _screenBoundaryX;
+            CheckExitScreen();
         }
 
-        if (Mathf.Abs(position.y) > _screenBoundaryY)
+        public void Dash()
         {
-            position.y = -Mathf.Sign(position.y) * _screenBoundaryY;
+            _isControllable = false;
+            _dashTimer = TickTimer.CreateFromSeconds(Runner, _dashTime);
+            _rigidbody.velocity = _lastDirection * _dashSpeed * Runner.DeltaTime;
         }
 
-        // Offset slightly to avoid looping back and forth between the edges
-        position -= position.normalized * 0.1f;
-        _rigidbody.position = position;
+        // Moves the player RB using the input for the client with InputAuthority over the object
+        private void Move(PlayerInput input)
+        {
+            if (!_isControllable) return;
+
+            // Calculate direction
+            Vector3 direction = (transform.forward * input.VerticalInput + transform.right * input.HorizontalInput);
+            direction.Normalize();
+
+            // Apply direct translation
+            _rigidbody.velocity = direction * _movementSpeed * Runner.DeltaTime;
+
+            if (_rigidbody.velocity.magnitude > _maxSpeed)
+            {
+                _rigidbody.velocity = _rigidbody.velocity.normalized * _maxSpeed;
+            }
+
+            if (input.VerticalInput != 0 || input.HorizontalInput != 0)
+            {
+                _lastDirection = direction;
+            }
+        }
+
+        // Moves the ship to the opposite side of the screen if it exits the screen boundaries.
+        private void CheckExitScreen()
+        {
+            var position = _rigidbody.position;
+
+            if (Mathf.Abs(position.x) > _screenBoundaryX || Mathf.Abs(position.z) > _screenBoundaryY)
+            {
+                // Restrict the x and z positions within the defined boundaries
+                position.x = Mathf.Clamp(position.x, -_screenBoundaryX, _screenBoundaryX);
+                position.z = Mathf.Clamp(position.z, -_screenBoundaryY, _screenBoundaryY);
+
+                // Apply the adjusted position to the rigidbody
+                _rigidbody.position = position;
+            }
+        }
     }
 }

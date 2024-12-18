@@ -5610,12 +5610,9 @@ namespace Fusion.CodeGen {
     }
 
     static partial void OverrideNetworkProjectConfigPath(ref string path);
-    static partial void OverrideIsAssemblyWeavable(string assemblyName, ref bool result);
 
     public static bool IsAssemblyWeavable(string[] assembliesToWeave, string assemblyName) {
-      bool result = Array.FindIndex(assembliesToWeave, x => assemblyName.Equals(x, StringComparison.OrdinalIgnoreCase)) >= 0;
-      OverrideIsAssemblyWeavable(assemblyName, ref result);
-      return result;
+      return Array.FindIndex(assembliesToWeave, x => assemblyName.Equals(x, StringComparison.OrdinalIgnoreCase)) >= 0;
     }
 
     public static bool ContainsRequiredReferences(string[] references) {

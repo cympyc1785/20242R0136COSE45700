@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Bullet
   layers:
   - Default
   - TransparentFX
@@ -13,9 +14,9 @@ TagManager:
   - UI
   - Tanmak
   - Player
-  - Bullet
-  - 
-  - 
+  - Bullets
+  - Item
+  - Background
   - 
   - 
   - 
@@ -38,9 +39,6 @@ TagManager:
   - 
   - 
   m_SortingLayers:
-  - name: Background
-    uniqueID: 1692475027
-    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0

@@ -56,7 +56,7 @@ namespace Fusion {
         var node = Components[i].gameObject.AddComponent<RunnerVisibilityLink>();
         node.Guid = _guid + i;
         node.Component = Components[i];
-        node.SetupOnSingleRunnerLink(PreferredRunner);
+        node.PreferredRunner = PreferredRunner;
         existingNodes.Add(node);
       }
     }
